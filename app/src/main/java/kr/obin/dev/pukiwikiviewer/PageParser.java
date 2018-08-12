@@ -19,9 +19,6 @@
 package kr.obin.dev.pukiwikiviewer;
 
 import android.os.AsyncTask;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.Message;
 import android.util.Log;
 
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -32,30 +29,33 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.net.URLEncoder;
 import java.util.concurrent.ExecutionException;
 
 public class PageParser
 {
     private static String src;
+    private static Connection connection = null;
     private static Connection.Response response = null;
+    private static String USER_AGENT
+            = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) PukiWikiViewer/0.0.0.0 Chrome/68.0.3440.106 Safari/537.36";
 
-    private PageParser(String langLocale)
+    private PageParser()
     {
 
     }
 
-    private static class MyAsync extends AsyncTask<String, Integer, String>
+    private static class PreGettingAsync extends AsyncTask<String, Integer, String>
     {
 
         @Override
         protected String doInBackground(String... strings)
         {
-            Log.i("MyAsync", "path is " + strings[0]);
+            Log.i("PreGettingAsync", "path is " + strings[0]);
             try
             {
                 response = Jsoup.connect(strings[0])
-                        .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36")
+                        .userAgent(USER_AGENT)
                         .timeout(10000)
                         .execute();
 
@@ -78,20 +78,98 @@ public class PageParser
         }
     }
 
+    private static class SearchAsync extends AsyncTask<String, Integer, String>
+    {
+
+        @Override
+        protected String doInBackground(String... strings)
+        {
+            Log.i("SearchAsync", strings.toString());
+            try
+            {
+                StringBuilder result = new StringBuilder();
+                connection = Jsoup.connect(strings[0])
+                        .userAgent(USER_AGENT);
+                Log.d("SearchAsync",  "connection created");
+
+                for (int i = 1; i < strings.length; i += 2)
+                {
+                    connection.data(strings[i], strings[i + 1]);
+                }
+                Log.d("SearchAsync",  "data submitted");
+
+                Document doc = connection.post();
+                Log.d("SearchAsync",  "post completed");
+
+                Elements ul = doc.getElementsByTag("ul");
+
+                if (ul.size() > 0)
+                {
+                    Log.d("SearchAsync",  "<ul> found");
+                    Elements li = ul.first().select("li");
+                    if (li.size() > 0)
+                    {
+                        String line;
+                        Log.d("SearchAsync",  "<li> found, size == " + li.size());
+                        for (Element e : li)
+                        {
+                            Log.d("SearchAsync",  e.text());
+                            // line = e.text() + "<br>";
+                            line = String.format("<a href=\"pwv://www.bemaniwiki.com/index.php?%s\">%s</a><br />", // TODO: general PukiWiki address
+                                    URLEncoder.encode(e.text(), "EUC-JP"),
+                                    e.text()
+                                    );
+                            result.append(line);
+                        }
+                        Log.d("SearchAsync",  result.toString());
+                        return result.toString();
+                    }
+                    else
+                    {
+                        return "No <li> tag found";
+                    }
+                }
+                else
+                {
+                    return "No <ul> tag found";
+                }
+            } catch (IOException e)
+            {
+                e.printStackTrace();
+                return ExceptionUtils.getStackTrace(e);
+            }
+        }
+    }
+
     public static int getStatus()
     {
         return response.statusCode();
     }
 
-    public static String getWikiSource(final String path)
+    public static String getWikiSource(final String url)
     {
-        MyAsync async = new MyAsync();
-        async.execute(path);
+        PreGettingAsync async = new PreGettingAsync();
+        async.execute(url);
 
         try
         {
             return async.get();
-        } catch (InterruptedException | ExecutionException e)
+        } catch (Exception e)
+        {
+            e.printStackTrace();
+            return ExceptionUtils.getStackTrace(e);
+        }
+    }
+
+    public static String getSearchData(final String... criteria)
+    {
+        SearchAsync async = new SearchAsync();
+        async.execute(criteria);
+
+        try
+        {
+            return async.get();
+        } catch (Exception e)
         {
             e.printStackTrace();
             return ExceptionUtils.getStackTrace(e);

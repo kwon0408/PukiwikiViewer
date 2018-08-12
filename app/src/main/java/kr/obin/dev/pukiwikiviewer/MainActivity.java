@@ -18,6 +18,7 @@
 
 package kr.obin.dev.pukiwikiviewer;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.os.Bundle;
@@ -25,6 +26,7 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.text.InputType;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
@@ -36,10 +38,13 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.webkit.WebView;
 import android.widget.EditText;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 
 import org.apache.commons.lang3.exception.ExceptionUtils;
+
 import java.net.URLEncoder;
+import java.security.InvalidParameterException;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener
@@ -61,56 +66,85 @@ public class MainActivity extends AppCompatActivity
             @Override
             public void onClick(final View view)
             {
-                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                Activity activity = MainActivity.this;
+                AlertDialog.Builder builder = new AlertDialog.Builder(activity);
                 builder.setTitle("Title");
 
-                // Set up the input
-                final EditText input = new EditText(MainActivity.this);
-                // Specify the type of input expected; this, for example, sets the input as a password, and will mask the text
-                input.setInputType(InputType.TYPE_CLASS_TEXT);
-                builder.setView(input);
+                // Get the layout inflater
+                LayoutInflater inflater = activity.getLayoutInflater();
 
-                // Set up the buttons
-                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        m_Text = input.getText().toString();
-                        // TextView txtContentTest = findViewById(R.id.txtContentTest);
-                        WebView wbContent = findViewById(R.id.wbContent);
-                        String url = null;
-
-                        // TODO: apply to general PukiWiki website
-                        try
+                // Inflate and set the layout for the dialog
+                // Pass null as the parent view because its going in the dialog layout
+                final View dialogView = inflater.inflate(R.layout.search_dialog, null);
+                builder.setView(dialogView)
+                        // Add action buttons
+                        .setPositiveButton("OK", new DialogInterface.OnClickListener()
                         {
-                            url = String.format("http://www.bemaniwiki.com/index.php?cmd=backup&page=%s&age=2147483648&action=source",
-                                    URLEncoder.encode(m_Text, "EUC-JP"));
-                            String src = PageParser.getWikiSource(url);
+                            @Override
+                            public void onClick(DialogInterface dialog, int which)
+                            {
+                                EditText input = dialogView.findViewById(R.id.etQuery);
+                                RadioGroup rg = dialogView.findViewById(R.id.rgCriterion);
 
-                            // TODO: use PukiWiki Parser
-                            wbContent.loadData(
-                                    src,
-                                    "text/plain; charset=UTF-8",
-                                    "UTF-8");
+                                Log.d("MainActivity", Boolean.toString(input != null));
+                                m_Text = input.getText().toString();
+                                int selected = rg.getCheckedRadioButtonId();
+                                // TextView txtContentTest = findViewById(R.id.txtContentTest);
+                                WebView wbContent = findViewById(R.id.wbContent);
+                                String url = null;
 
-                            Log.d("MainActivity", src.substring(0, Math.min(src.length(), 50)));
-                        } catch (Exception e)
+                                // TODO: apply to general PukiWiki website
+                                try
+                                {
+                                    if (selected == R.id.rbExactSearch) // use query as title
+                                    {
+                                        url = String.format("http://www.bemaniwiki.com/index.php?cmd=backup&page=%s&age=2147483648&action=source",
+                                                URLEncoder.encode(m_Text, "EUC-JP"));
+                                        String src = PageParser.getWikiSource(url);
+
+                                        // TODO: use PukiWiki Parser
+                                        wbContent.loadData(
+                                                src,
+                                                "text/plain; charset=UTF-8",
+                                                "UTF-8");
+                                    }
+                                    else // search with the query
+                                    {
+                                        url = "http://www.bemaniwiki.com/index.php?cmd=search";
+
+                                        String src = PageParser.getSearchData(url,
+                                                "encode_hint", "%A4%D7", // TODO: UTF-8 engine support - use "%E3%81%B7": this means "ぷ"
+                                                "word", URLEncoder.encode(m_Text, "EUC-JP"),
+                                                "type", (selected == R.id.rbAndSearch ? "AND" : "OR"));
+
+                                        // TODO: use PukiWiki Parser
+                                        wbContent.loadData(
+                                                src,
+                                                "text/html; charset=UTF-8",
+                                                "UTF-8");
+
+                                    }
+
+                                    // Log.d("MainActivity", src.substring(0, Math.min(src.length(), 50)));
+                                } catch (Exception e)
+                                {
+                                    wbContent.loadData(
+                                            ExceptionUtils.getStackTrace(e),
+                                            "text/plain; charset=UTF-8",
+                                            "UTF-8");
+                                }
+
+                            }
+                        })
+                        .setNegativeButton("Cancel", new DialogInterface.OnClickListener()
                         {
-                            wbContent.loadData(
-                                    ExceptionUtils.getStackTrace(e),
-                                    "text/plain; charset=UTF-8",
-                                    "UTF-8");
-                        }
-
-                    }
-                });
-                builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.cancel();
-                    }
-                });
-
-                builder.show();
+                            @Override
+                            public void onClick(DialogInterface dialog, int which)
+                            {
+                                dialog.cancel();
+                            }
+                        })
+                        .show();
             }
         });
 
@@ -131,7 +165,8 @@ public class MainActivity extends AppCompatActivity
         if (drawer.isDrawerOpen(GravityCompat.START))
         {
             drawer.closeDrawer(GravityCompat.START);
-        } else
+        }
+        else
         {
             super.onBackPressed();
         }
@@ -172,19 +207,24 @@ public class MainActivity extends AppCompatActivity
         if (id == R.id.nav_camera)
         {
             // Handle the camera action
-        } else if (id == R.id.nav_gallery)
+        }
+        else if (id == R.id.nav_gallery)
         {
 
-        } else if (id == R.id.nav_slideshow)
+        }
+        else if (id == R.id.nav_slideshow)
         {
 
-        } else if (id == R.id.nav_manage)
+        }
+        else if (id == R.id.nav_manage)
         {
 
-        } else if (id == R.id.nav_share)
+        }
+        else if (id == R.id.nav_share)
         {
 
-        } else if (id == R.id.nav_send)
+        }
+        else if (id == R.id.nav_send)
         {
 
         }
