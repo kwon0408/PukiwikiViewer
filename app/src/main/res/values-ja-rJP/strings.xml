@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="action_settings">設定</string>
+    <string name="search_dialog_hint">ページタイトルまたは検索語</string>
+    <string name="search_tooltip">検索</string>
+</resources>

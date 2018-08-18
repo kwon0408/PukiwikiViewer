@@ -21,10 +21,10 @@ package kr.obin.dev.pukiwikiviewer;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
-import android.text.InputType;
+import android.support.v7.app.ActionBar;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -39,12 +39,10 @@ import android.view.MenuItem;
 import android.webkit.WebView;
 import android.widget.EditText;
 import android.widget.RadioGroup;
-import android.widget.TextView;
 
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import java.net.URLEncoder;
-import java.security.InvalidParameterException;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener
@@ -59,94 +57,6 @@ public class MainActivity extends AppCompatActivity
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener()
-        {
-            @Override
-            public void onClick(final View view)
-            {
-                Activity activity = MainActivity.this;
-                AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-                builder.setTitle("Title");
-
-                // Get the layout inflater
-                LayoutInflater inflater = activity.getLayoutInflater();
-
-                // Inflate and set the layout for the dialog
-                // Pass null as the parent view because its going in the dialog layout
-                final View dialogView = inflater.inflate(R.layout.search_dialog, null);
-                builder.setView(dialogView)
-                        // Add action buttons
-                        .setPositiveButton("OK", new DialogInterface.OnClickListener()
-                        {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which)
-                            {
-                                EditText input = dialogView.findViewById(R.id.etQuery);
-                                RadioGroup rg = dialogView.findViewById(R.id.rgCriterion);
-
-                                Log.d("MainActivity", Boolean.toString(input != null));
-                                m_Text = input.getText().toString();
-                                int selected = rg.getCheckedRadioButtonId();
-                                // TextView txtContentTest = findViewById(R.id.txtContentTest);
-                                WebView wbContent = findViewById(R.id.wbContent);
-                                String url = null;
-
-                                // TODO: apply to general PukiWiki website
-                                try
-                                {
-                                    if (selected == R.id.rbExactSearch) // use query as title
-                                    {
-                                        url = String.format("http://www.bemaniwiki.com/index.php?cmd=backup&page=%s&age=2147483648&action=source",
-                                                URLEncoder.encode(m_Text, "EUC-JP"));
-                                        String src = PageParser.getWikiSource(url);
-
-                                        // TODO: use PukiWiki Parser
-                                        wbContent.loadData(
-                                                src,
-                                                "text/plain; charset=UTF-8",
-                                                "UTF-8");
-                                    }
-                                    else // search with the query
-                                    {
-                                        url = "http://www.bemaniwiki.com/index.php?cmd=search";
-
-                                        String src = PageParser.getSearchData(url,
-                                                "encode_hint", "%A4%D7", // TODO: UTF-8 engine support - use "%E3%81%B7": this means "ぷ"
-                                                "word", URLEncoder.encode(m_Text, "EUC-JP"),
-                                                "type", (selected == R.id.rbAndSearch ? "AND" : "OR"));
-
-                                        // TODO: use PukiWiki Parser
-                                        wbContent.loadData(
-                                                src,
-                                                "text/html; charset=UTF-8",
-                                                "UTF-8");
-
-                                    }
-
-                                    // Log.d("MainActivity", src.substring(0, Math.min(src.length(), 50)));
-                                } catch (Exception e)
-                                {
-                                    wbContent.loadData(
-                                            ExceptionUtils.getStackTrace(e),
-                                            "text/plain; charset=UTF-8",
-                                            "UTF-8");
-                                }
-
-                            }
-                        })
-                        .setNegativeButton("Cancel", new DialogInterface.OnClickListener()
-                        {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which)
-                            {
-                                dialog.cancel();
-                            }
-                        })
-                        .show();
-            }
-        });
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
@@ -189,9 +99,104 @@ public class MainActivity extends AppCompatActivity
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings)
+        if (id == R.id.app_bar_search) // search icon
         {
-            return true;
+            Activity activity = MainActivity.this;
+            AlertDialog.Builder builder = new AlertDialog.Builder(activity);
+            builder.setTitle("Title");
+
+            // Get the layout inflater
+            LayoutInflater inflater = activity.getLayoutInflater();
+
+            // Inflate and set the layout for the dialog
+            // Pass null as the parent view because its going in the dialog layout
+            final View dialogView = inflater.inflate(R.layout.search_dialog, null);
+            builder.setView(dialogView)
+                    // Add action buttons
+                    .setPositiveButton("OK", new DialogInterface.OnClickListener()
+                    {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which)
+                        {
+                            EditText input = dialogView.findViewById(R.id.etQuery);
+                            RadioGroup rg = dialogView.findViewById(R.id.rgCriterion);
+
+                            Log.d("MainActivity", Boolean.toString(input != null));
+                            m_Text = input.getText().toString();
+                            int selected = rg.getCheckedRadioButtonId();
+                            // TextView txtContentTest = findViewById(R.id.txtContentTest);
+                            WebView wbContent = findViewById(R.id.wbContent);
+                            String url = null;
+
+                            // TODO: apply to general PukiWiki website
+                            try
+                            {
+                                if (selected == R.id.rbExactSearch) // EXACT selected: use query as title
+                                {
+                                    url = String.format("http://www.bemaniwiki.com/index.php?cmd=backup&page=%s&age=2147483648&action=source",
+                                            URLEncoder.encode(m_Text, "EUC-JP"));
+                                    String src = PageParser.getWikiSource(url);
+
+                                    // TODO: use PukiWiki Parser
+                                    wbContent.loadData(
+                                            src,
+                                            "text/plain; charset=UTF-8",
+                                            "UTF-8");
+                                }
+                                else // AND/OR selected: search with the query
+                                {
+                                    url = "http://www.bemaniwiki.com/index.php?cmd=search";
+
+                                    String src = PageParser.getSearchData(url,
+                                            "encode_hint", "%A4%D7", // TODO: UTF-8 engine support - use "%E3%81%B7": this means "ぷ"
+                                            "word", URLEncoder.encode(m_Text, "EUC-JP"),
+                                            "type", (selected == R.id.rbAndSearch ? "AND" : "OR"));
+
+                                    // TODO: use PukiWiki Parser
+                                    wbContent.loadData(
+                                            src,
+                                            "text/html; charset=UTF-8",
+                                            "UTF-8");
+
+                                }
+
+                                // Set action bar text
+                                ActionBar bar = MainActivity.this.getSupportActionBar();
+                                Log.d("getActionBar", (bar == null? "bar == null": "bar != null"));
+                                if (bar != null)
+                                {
+                                    bar.setTitle("TITLE_TEST");
+                                    bar.setSubtitle("BemaniWiki 2nd");
+                                    // TODO: apply to general PukiWiki website
+                                }
+
+                                // TODO: replace with actual site name and page title
+
+
+                                // Log.d("MainActivity", src.substring(0, Math.min(src.length(), 50)));
+                            } catch (Exception e)
+                            {
+                                wbContent.loadData(
+                                        ExceptionUtils.getStackTrace(e),
+                                        "text/plain; charset=UTF-8",
+                                        "UTF-8");
+                            }
+
+                        }
+                    })
+                    .setNegativeButton("Cancel", new DialogInterface.OnClickListener()
+                    {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which)
+                        {
+                            dialog.cancel();
+                        }
+                    })
+                    .show();
+        }
+        else if (id == R.id.action_settings)
+        {
+            startActivity(new Intent(this, SettingsActivity.class));
         }
 
         return super.onOptionsItemSelected(item);

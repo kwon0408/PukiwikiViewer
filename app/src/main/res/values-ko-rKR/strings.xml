@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="action_settings">설정</string>
+    <string name="search_dialog_hint">페이지 제목 또는 검색어</string>
+    <string name="search_tooltip">검색</string>
+</resources>
