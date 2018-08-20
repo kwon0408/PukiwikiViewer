@@ -3,4 +3,6 @@
     <string name="action_settings">設定</string>
     <string name="search_dialog_hint">ページタイトルまたは検索語</string>
     <string name="search_tooltip">検索</string>
+    <string name="action_bar_search_result">検索結果：</string>
+    <string name="activity_main_press_twice">キャンセルをもう一度押すとアプリが終了します</string>
 </resources>

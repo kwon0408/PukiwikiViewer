@@ -30,12 +30,11 @@ import org.jsoup.select.Elements;
 
 import java.io.IOException;
 import java.net.URLEncoder;
-import java.util.concurrent.ExecutionException;
+
+import android.net.Uri;
 
 public class PageParser
 {
-    private static String src;
-    private static Connection connection = null;
     private static Connection.Response response = null;
     private static String USER_AGENT
             = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) PukiWikiViewer/0.0.0.0 Chrome/68.0.3440.106 Safari/537.36";
@@ -45,6 +44,25 @@ public class PageParser
 
     }
 
+    // URI scheme of this app
+    private static String uriScheme;
+
+    public static void setUriScheme(String uriScheme)
+    {
+        if (PageParser.uriScheme == null)
+            PageParser.uriScheme = uriScheme;
+    }
+
+    // TODO: currently selected website's name
+    private static String currentWebsiteName;
+
+    // TODO: currently selected website's address
+    private static String currentWebsiteAddress;
+
+    // TODO: currently selected website's encoding type
+    private static boolean isUsingUtf8;
+
+    // a class derived from AsyncTask getting page source from PukiWiki's "backup" (i.e. document history) page
     private static class PreGettingAsync extends AsyncTask<String, Integer, String>
     {
 
@@ -68,7 +86,7 @@ public class PageParser
                 }
                 else
                 {
-                    return "No <pre> tag found";
+                    return "No &lt;pre&gt; tag found";
                 }
             } catch (IOException e)
             {
@@ -78,60 +96,74 @@ public class PageParser
         }
     }
 
+    // a class derived from AsyncTask getting search results from PukiWiki's search result page
     private static class SearchAsync extends AsyncTask<String, Integer, String>
     {
 
         @Override
         protected String doInBackground(String... strings)
         {
-            Log.i("SearchAsync", strings.toString());
+            // Log.i("SearchAsync", Arrays.toString(strings));
             try
             {
                 StringBuilder result = new StringBuilder();
-                connection = Jsoup.connect(strings[0])
+                Connection connection = Jsoup.connect(strings[0])
                         .userAgent(USER_AGENT);
-                Log.d("SearchAsync",  "connection created");
+                // Log.d("SearchAsync",  "connection created");
 
                 for (int i = 1; i < strings.length; i += 2)
                 {
                     connection.data(strings[i], strings[i + 1]);
                 }
-                Log.d("SearchAsync",  "data submitted");
+                // Log.d("SearchAsync",  "data submitted");
 
                 Document doc = connection.post();
-                Log.d("SearchAsync",  "post completed");
+                // Log.d("SearchAsync",  "post completed");
 
                 Elements ul = doc.getElementsByTag("ul");
 
                 if (ul.size() > 0)
                 {
-                    Log.d("SearchAsync",  "<ul> found");
+                    // Log.d("SearchAsync",  "<ul> found");
                     Elements li = ul.first().select("li");
                     if (li.size() > 0)
                     {
                         String line;
-                        Log.d("SearchAsync",  "<li> found, size == " + li.size());
+                        Log.d("SearchAsync", "<li> found, size == " + li.size());
                         for (Element e : li)
                         {
-                            Log.d("SearchAsync",  e.text());
+                            String etext = e.text();
+                            //String encoded = URLEncoder.encode(etext, "EUC-JP");
+                            byte[] _encoded = etext.getBytes("EUC-JP");
+                            StringBuilder sb = new StringBuilder();
+                            for (byte b : _encoded)
+                            {
+                                sb.append(String.format("%%%02X", b));
+                            }
+                            String encoded = sb.toString();
+                            // Log.d("SearchAsync", etext + " -> " + encoded);
                             // line = e.text() + "<br>";
-                            line = String.format("<a href=\"pwv://www.bemaniwiki.com/index.php?%s\">%s</a><br />", // TODO: general PukiWiki address
-                                    URLEncoder.encode(e.text(), "EUC-JP"),
-                                    e.text()
-                                    );
+                            // Log.d("PageParser", uriScheme);
+
+                            line = String.format("<a href=\"%s://www.bemaniwiki.com/index.php?%s\">%s</a><br />", // TODO: general PukiWiki address
+                                    uriScheme,
+                                    encoded,
+                                    etext
+                            );
                             result.append(line);
+                            Log.d("SearchAsync", line);
                         }
-                        Log.d("SearchAsync",  result.toString());
-                        return result.toString();
+                        // Log.d("SearchAsync",  result.toString());
+                        return result.toString().replaceAll("%", "&#37;");
                     }
                     else
                     {
-                        return "No <li> tag found";
+                        return "No &lt;li&gt; tag found";
                     }
                 }
                 else
                 {
-                    return "No <ul> tag found";
+                    return "No &lt;ul&gt; tag found";
                 }
             } catch (IOException e)
             {
@@ -141,11 +173,13 @@ public class PageParser
         }
     }
 
+    // a method getting search result from PukiWiki's search result page
     public static int getStatus()
     {
         return response.statusCode();
     }
 
+    // a method getting search result from PukiWiki's search result page
     public static String getWikiSource(final String url)
     {
         PreGettingAsync async = new PreGettingAsync();

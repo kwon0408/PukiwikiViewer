@@ -3,4 +3,6 @@
     <string name="action_settings">설정</string>
     <string name="search_dialog_hint">페이지 제목 또는 검색어</string>
     <string name="search_tooltip">검색</string>
+    <string name="action_bar_search_result">"검색 결과: "</string>
+    <string name="activity_main_press_twice">종료하려면 취소 버튼을 다시 누르세요</string>
 </resources>
